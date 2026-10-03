@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verificación de Personal - EPS Eco Peñalver</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f0f2f5;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .card {
+            background-color: white;
+            width: 340px;
+            border-radius: 16px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            overflow: hidden;
+            text-align: center;
+            border-top: 6px solid #2e7d32;
+        }
+        .header {
+            padding: 20px;
+            background-color: #e8f5e9;
+        }
+        .logo {
+            font-size: 18px;
+            font-weight: bold;
+            color: #1b5e20;
+            margin: 0;
+            letter-spacing: 1px;
+        }
+        .subtitle {
+            font-size: 11px;
+            color: #558b2f;
+            margin-top: 4px;
+            text-transform: uppercase;
+        }
+        .info {
+            padding: 25px 20px;
+        }
+        .name {
+            font-size: 19px;
+            font-weight: bold;
+            margin: 5px 0 5px;
+            color: #2c3e50;
+        }
+        .position {
+            font-size: 13px;
+            color: #7f8c8d;
+            margin-bottom: 20px;
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+        .cedula {
+            font-size: 12px;
+            color: #95a5a6;
+            margin-bottom: 15px;
+        }
+        .status {
+            display: inline-block;
+            padding: 8px 24px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 14px;
+            letter-spacing: 0.5px;
+        }
+        .status.active {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .status.inactive {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .footer {
+            background-color: #f8f9fa;
+            padding: 12px;
+            font-size: 11px;
+            color: #6c757d;
+            border-top: 1px solid #e9ecef;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="card">
+        <div class="header">
+            <h1 class="logo">EPS ECOPEÑALVER, C.A.</h1>
+            <div class="subtitle">Credencial Digital Oficial</div>
+        </div>
+        <div class="info">
+            <div class="name" id="empName">Cargando datos...</div>
+            <div class="position" id="empPosition">Por favor espere</div>
+            <div class="cedula" id="empCedula">Cédula: ---</div>
+            <div class="status active" id="empStatus">VERIFICANDO</div>
+        </div>
+        <div class="footer">
+            ID Único: <span id="empId">---</span>
+        </div>
+    </div>
+
+    <script>
+        // Enlace CSV publicado de tu Google Sheets
+        const csvUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTZFXnOPzZZjAHJnRoeghtJf0XOnPHyYlhs8dgmdJHQcVI7J6YxHG6Gn6h6fGE0OmVJDY5IH2CGhLdk/pub?output=csv";
+
+        // Leer el ID que viene en el navegador (ejemplo: ?id=EV-AC009)
+        const urlParams = new URLSearchParams(window.location.search);
+        const scannedId = urlParams.get('id');
+
+        async function verificarEmpleado() {
+            if (!scannedId) {
+                mostrarError("No se proporcionó un ID de gafete válido.");
+                return;
+            }
+
+            try {
+                const response = await fetch(csvUrl);
+                const data = await response.text();
+                
+                // Procesar el archivo CSV línea por línea
+                const filas = data.split('\n');
+                let encontrado = false;
+
+                for (let i = 1; i < filas.length; i++) {
+                    const fila = filas[i].trim();
+                    if (!fila) continue;
+
+                    // Separar por comas respetando estructura básica
+                    const columnas = fila.split(',');
+                    const idUnico = columnas[0]?.trim();
+
+                    if (idUnico === scannedId) {
+                        const cedula = columnas[1]?.trim();
+                        const nombres = columnas[2]?.trim();
+                        const cargo = columnas[3]?.trim();
+                        const estado = columnas[6]?.trim();
+
+                        // Rellenar la tarjeta con los datos reales
+                        document.getElementById('empName').innerText = nombres;
+                        document.getElementById('empPosition').innerText = cargo;
+                        document.getElementById('empCedula').innerText = "Cédula: " + cedula;
+                        document.getElementById('empId').innerText = idUnico;
+
+                        const statusBadge = document.getElementById('empStatus');
+                        statusBadge.innerText = estado;
+
+                        if (estado === "INACTIVO") {
+                            statusBadge.classList.remove('active');
+                            statusBadge.classList.add('inactive');
+                        }
+                        
+                        encontrado = true;
+                        break;
+                    }
+                }
+
+                if (!encontrado) {
+                    mostrarError("Gafete no registrado en la base de datos.");
+                }
+
+            } catch (error) {
+                mostrarError("Error al conectar con el servidor.");
+            }
+        }
+
+        function mostrarError(mensaje) {
+            document.getElementById('empName').innerText = "Acceso Denegado";
+            document.getElementById('empPosition').innerText = mensaje;
+            document.getElementById('empCedula').innerText = "";
+            document.getElementById('empId').innerText = scannedId || "---";
+            const statusBadge = document.getElementById('empStatus');
+            statusBadge.innerText = "INVÁLIDO";
+            statusBadge.classList.remove('active');
+            statusBadge.classList.add('inactive');
+        }
+
+        verificarEmpleado();
+    </script>
+</body>
+</html>
